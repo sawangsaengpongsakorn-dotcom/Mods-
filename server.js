@@ -6,10 +6,10 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🔑 ตั้งค่ารหัสผ่านสำหรับเจ้าของเว็บ
+// 🔑 รหัสผ่าน Admin สำหรับอัปโหลดและลบ
 const ADMIN_PASSWORD = "admin1234password";
 
-// ฟังก์ชันแปลงขนาดไฟล์จาก Bytes เป็น KB / MB อัตโนมัติ
+// ฟังก์ชันแปลงขนาดไฟล์เป็น KB/MB อัตโนมัติ
 function formatBytes(bytes) {
     if (!bytes || bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -36,47 +36,65 @@ app.use('/uploads', express.static('uploads'));
 
 // ดึงรายการมอดทั้งหมด
 app.get('/api/mods', (req, res) => {
-    const data = fs.readFileSync('./mods.json');
-    res.json(JSON.parse(data));
+    try {
+        const data = fs.readFileSync('./mods.json', 'utf8');
+        res.json(JSON.parse(data || '[]'));
+    } catch (err) {
+        res.json([]);
+    }
 });
 
-// อัปโหลดมอดใหม่
+// 📤 อัปโหลดมอดใหม่
 app.post('/api/mods', upload.fields([{ name: 'modFile' }, { name: 'coverImage' }]), (req, res) => {
-    const { password, title, artist } = req.body;
+    const { password, title, artist, category } = req.body;
 
     if (password !== ADMIN_PASSWORD) {
         return res.status(403).json({ success: false, message: "รหัสผ่าน Admin ไม่ถูกต้อง!" });
     }
 
-    if (!req.files.modFile || !req.files.coverImage) {
+    if (!req.files || !req.files.modFile || !req.files.coverImage) {
         return res.status(400).json({ success: false, message: "กรุณาแนบทั้งไฟล์มอดและรูปภาพตัวอย่าง" });
     }
 
     const modFile = req.files.modFile[0];
+    const coverImage = req.files.coverImage[0];
 
     const newMod = {
         id: Date.now(),
-        title,
-        artist,
+        title: title || 'ไม่มีชื่อมอด',
+        artist: artist || 'ไม่ระบุผู้สร้าง',
+        category: category || 'Addon',
         modFileUrl: `/uploads/${modFile.filename}`,
-        coverImageUrl: `/uploads/${req.files.coverImage[0].filename}`,
+        coverImageUrl: `/uploads/${coverImage.filename}`,
         modFileName: modFile.originalname,
-        fileSize: formatBytes(modFile.size), // คำนวณขนาดไฟล์ให้อัตโนมัติ
-        downloads: 0,                       // เริ่มต้นดาวน์โหลดที่ 0 ครั้ง
+        fileSize: formatBytes(modFile.size),
+        downloads: 0,
         date: new Date().toLocaleDateString('th-TH')
     };
 
-    const mods = JSON.parse(fs.readFileSync('./mods.json'));
+    let mods = [];
+    try {
+        mods = JSON.parse(fs.readFileSync('./mods.json', 'utf8') || '[]');
+    } catch (e) {
+        mods = [];
+    }
+
     mods.unshift(newMod);
     fs.writeFileSync('./mods.json', JSON.stringify(mods, null, 2));
 
     res.json({ success: true, message: "อัปโหลดมอดเรียบร้อยแล้ว!" });
 });
 
-// 📥 นับจำนวนดาวน์โหลดเมื่อมีคนกดโหลด
+// 📥 นับจำนวนดาวน์โหลด
 app.post('/api/mods/:id/download', (req, res) => {
     const modId = parseInt(req.params.id);
-    const mods = JSON.parse(fs.readFileSync('./mods.json'));
+    let mods = [];
+    try {
+        mods = JSON.parse(fs.readFileSync('./mods.json', 'utf8') || '[]');
+    } catch (e) {
+        return res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดในการอ่านไฟล์" });
+    }
+
     const mod = mods.find(m => m.id === modId);
 
     if (mod) {
@@ -88,7 +106,7 @@ app.post('/api/mods/:id/download', (req, res) => {
     }
 });
 
-// 🗑️ ลบมอด (เฉพาะ Admin)
+// 🗑️ ลบมอด (ใช้รหัสผ่าน Admin)
 app.delete('/api/mods/:id', (req, res) => {
     const { password } = req.body;
     const modId = parseInt(req.params.id);
@@ -97,20 +115,27 @@ app.delete('/api/mods/:id', (req, res) => {
         return res.status(403).json({ success: false, message: "รหัสผ่าน Admin ไม่ถูกต้อง!" });
     }
 
-    let mods = JSON.parse(fs.readFileSync('./mods.json'));
+    let mods = [];
+    try {
+        mods = JSON.parse(fs.readFileSync('./mods.json', 'utf8') || '[]');
+    } catch (e) {
+        return res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดในการอ่านไฟล์" });
+    }
+
     const modToDelete = mods.find(m => m.id === modId);
 
     if (!modToDelete) {
         return res.status(404).json({ success: false, message: "ไม่พบมอดที่ต้องการลบ" });
     }
 
+    // ลบไฟล์ภาพและไฟล์มอดออกจากเครื่อง
     try {
         const modFilePath = path.join(__dirname, modToDelete.modFileUrl);
         const coverImagePath = path.join(__dirname, modToDelete.coverImageUrl);
         if (fs.existsSync(modFilePath)) fs.unlinkSync(modFilePath);
         if (fs.existsSync(coverImagePath)) fs.unlinkSync(coverImagePath);
     } catch (err) {
-        console.error("Error deleting files:", err);
+        console.error("Error deleting physical files:", err);
     }
 
     mods = mods.filter(m => m.id !== modId);
