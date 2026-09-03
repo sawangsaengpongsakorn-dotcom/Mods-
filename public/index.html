@@ -33,6 +33,7 @@
             color: #55FF55;
             text-shadow: 3px 3px #000000;
             letter-spacing: 2px;
+            cursor: pointer;
         }
 
         .btn-mc { 
@@ -59,6 +60,8 @@
             width: 100%;
             padding: 10px 0;
             margin-top: 10px;
+            color: #fff;
+            font-weight: bold;
         }
         .btn-download:hover { background: #1565C0; }
 
@@ -72,7 +75,44 @@
         .btn-delete:hover { background: #C62828; }
 
         .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
-        
+
+        /* ช่องเลือกหมวดหมู่แบบการ์ดใหญ่ในหน้าแรก */
+        .category-hub {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .cat-card {
+            background: #1e1e1e;
+            border: 3px solid #333;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: 4px 4px 0px #000;
+            transition: 0.2s;
+        }
+        .cat-card:hover, .cat-card.active {
+            border-color: #55FF55;
+            background: #252525;
+            transform: translateY(-3px);
+        }
+        .cat-icon { font-size: 28px; margin-bottom: 5px; }
+        .cat-title { font-size: 16px; font-weight: bold; color: #FFFF55; }
+
+        /* ช่องค้นหา */
+        .search-container { margin-bottom: 25px; }
+        .search-box {
+            width: 100%;
+            padding: 12px 18px;
+            background: #181818;
+            border: 2px solid #55FF55;
+            color: #fff;
+            font-size: 16px;
+            outline: none;
+            box-shadow: inset 2px 2px 0px #000;
+        }
+
         .section-title {
             font-family: 'VT323', monospace;
             font-size: 28px;
@@ -99,11 +139,11 @@
         .mod-card:hover { border-color: #55FF55; }
         .mod-card img { width: 100%; height: 180px; object-fit: cover; border-bottom: 3px solid #333; }
         .mod-info { padding: 15px; }
+        .mod-cat-tag { display: inline-block; background: #55FF55; color: #000; font-size: 11px; font-weight: bold; padding: 2px 8px; margin-bottom: 6px; }
         .mod-title { font-size: 18px; font-weight: bold; color: #FFF; margin-bottom: 5px; }
         .mod-artist { font-size: 14px; color: #AAA; margin-bottom: 8px; }
         .mod-artist b { color: #55FF55; }
         
-        /* ป้ายแสดงรายละเอียดขนาดไฟล์และจำนวนโหลด */
         .mod-stats {
             display: flex;
             justify-content: space-between;
@@ -126,19 +166,44 @@
         
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-size: 14px; color: #DDD; }
-        .form-group input { width: 100%; padding: 10px; border: 2px solid #444; background: #111; color: white; border-radius: 0; }
-        .form-group input:focus { border-color: #55FF55; outline: none; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 2px solid #444; background: #111; color: white; border-radius: 0; }
+        .form-group input:focus, .form-group select:focus { border-color: #55FF55; outline: none; }
     </style>
 </head>
 <body>
 
     <header>
-        <div class="logo-title">⛏️ MC MOD VAULT</div>
+        <div class="logo-title" onclick="selectCategory('All')">⛏️ MC MOD VAULT</div>
         <button class="btn-mc" onclick="openModal()">+ อัปโหลดมอด (Admin)</button>
     </header>
 
     <div class="container">
-        <div class="section-title">MODS & ADDONS</div>
+        <!-- ช่องเลือกหมวดหมู่หน้าแรก -->
+        <div class="category-hub">
+            <div class="cat-card active" id="cat-All" onclick="selectCategory('All')">
+                <div class="cat-icon">📦</div>
+                <div class="cat-title">ทั้งหมด</div>
+            </div>
+            <div class="cat-card" id="cat-Addon" onclick="selectCategory('Addon')">
+                <div class="cat-icon">🧩</div>
+                <div class="cat-title">Addon / Mod</div>
+            </div>
+            <div class="cat-card" id="cat-Texture" onclick="selectCategory('Texture Pack')">
+                <div class="cat-icon">🎨</div>
+                <div class="cat-title">เท็กเจอร์แพ็ก</div>
+            </div>
+            <div class="cat-card" id="cat-Map" onclick="selectCategory('Map')">
+                <div class="cat-icon">🗺️</div>
+                <div class="cat-title">แผนที่ / Map</div>
+            </div>
+        </div>
+
+        <!-- ช่องค้นหา แบบเรียงตัวคัดลอกที่คล้ายสุดขึ้นก่อน -->
+        <div class="search-container">
+            <input type="text" id="searchInput" class="search-box" placeholder="🔍 พิมพ์ค้นหาชื่อมอด (จัดเรียงตามชื่อที่ใกล้เคียงที่สุด)...">
+        </div>
+
+        <div class="section-title" id="sectionHeader">MODS & ADDONS (ทั้งหมด)</div>
         <div class="mod-grid" id="modGrid">
             <!-- รายการมอดจะแสดงตรงนี้ -->
         </div>
@@ -153,6 +218,15 @@
                 <div class="form-group">
                     <label>รหัสผ่าน Admin</label>
                     <input type="password" id="adminPassword" required placeholder="ใส่รหัสผ่านเพื่ออัปโหลด">
+                </div>
+                <div class="form-group">
+                    <label>หมวดหมู่</label>
+                    <select id="modCategory">
+                        <option value="Addon">🧩 Addon / Mod</option>
+                        <option value="Texture Pack">🎨 เท็กเจอร์แพ็ก / Resource Pack</option>
+                        <option value="Map">🗺️ แผนที่ / Map</option>
+                        <option value="Shader">✨ Shader / เงา</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>ชื่อมอด / Addon</label>
@@ -178,31 +252,68 @@
     <script>
         const modal = document.getElementById('uploadModal');
         const uploadForm = document.getElementById('uploadForm');
+        let allMods = [];
+        let currentCategory = 'All';
 
         function openModal() { modal.style.display = 'flex'; }
         function closeModal() { modal.style.display = 'none'; }
 
+        // โหลดข้อมูลมอดจริงจาก Server
         async function fetchMods() {
-            const res = await fetch('/api/mods');
-            const mods = await res.json();
+            try {
+                const res = await fetch('/api/mods');
+                allMods = await res.json();
+                renderMods();
+            } catch (err) {
+                console.error("Fetch error:", err);
+            }
+        }
+
+        // คำนวณความคล้ายของคำ (Closest Match Algorithm)
+        function getSearchScore(modTitle, query) {
+            if (!query) return 1;
+            query = query.toLowerCase().trim();
+            const title = modTitle.toLowerCase();
+
+            if (title === query) return 100;         // ตรงเป๊ะ
+            if (title.startsWith(query)) return 80;  // ขึ้นต้นด้วยคำที่พิมพ์
+            if (title.includes(query)) return 50;    // มีคำที่พิมพ์อยู่ข้างใน
+            return 0;                               // ไม่ตรงเลย
+        }
+
+        // แสดงผลมอด + กรองหมวดหมู่ + จัดเรียงค้นหาตามคำคล้ายสุด
+        function renderMods() {
+            const query = document.getElementById('searchInput').value;
             const modGrid = document.getElementById('modGrid');
-            
-            if (mods.length === 0) {
-                modGrid.innerHTML = '<p style="color: #888;">ยังไม่มีมอดในระบบ</p>';
+
+            let filtered = allMods.filter(mod => {
+                if (currentCategory === 'All') return true;
+                return mod.category === currentCategory;
+            });
+
+            // คำนวณคะแนนแล้วจัดเรียงอันดับคำคล้ายสุดขึ้นก่อน
+            filtered = filtered
+                .map(mod => ({ mod, score: getSearchScore(mod.title, query) }))
+                .filter(item => item.score > 0)
+                .sort((a, b) => b.score - a.score)
+                .map(item => item.mod);
+
+            if (filtered.length === 0) {
+                modGrid.innerHTML = '<p style="color: #888; grid-column: 1/-1; text-align: center; padding: 40px;">❌ ไม่พบมอดในช่องนี้ หรือไม่ตรงกับการค้นหา</p>';
                 return;
             }
 
-            modGrid.innerHTML = mods.map(mod => `
+            modGrid.innerHTML = filtered.map(mod => `
                 <div class="mod-card">
                     <div>
                         <img src="${mod.coverImageUrl}" alt="${mod.title}">
                         <div class="mod-info">
+                            <span class="mod-cat-tag">${mod.category || 'Addon'}</span>
                             <div class="mod-title">${mod.title}</div>
                             <div class="mod-artist">สร้างโดย: <b>${mod.artist}</b></div>
                             
-                            <!-- ป้ายแสดงขนาดไฟล์ และ จำนวนดาวน์โหลด -->
                             <div class="mod-stats">
-                                <div class="stat-item">💾 <span id="dl-size-${mod.id}">${mod.fileSize || 'ไม่ระบุ'}</span></div>
+                                <div class="stat-item">💾 <span>${mod.fileSize || 'ไม่ระบุ'}</span></div>
                                 <div class="stat-item">📥 <span id="dl-count-${mod.id}">${mod.downloads || 0}</span> ครั้ง</div>
                             </div>
 
@@ -210,24 +321,40 @@
                         </div>
                     </div>
                     <div style="padding: 0 15px;">
-                        <a href="${mod.modFileUrl}" download onclick="trackDownload(${mod.id})" class="btn-mc btn-download">📥 ดาวน์โหลดมอด</a>
+                        <a href="${mod.modFileUrl}" download="${mod.modFileName}" onclick="trackDownload(${mod.id})" class="btn-mc btn-download">📥 ดาวน์โหลดมอด</a>
                         <button onclick="deleteMod(${mod.id})" class="btn-mc btn-delete">🗑️ ลบมอดนี้</button>
                     </div>
                 </div>
             `).join('');
         }
 
-        // ฟังก์ชันนับการดาวน์โหลดอัตโนมัติ
+        // เลือกหมวดหมู่ช่อง
+        function selectCategory(cat) {
+            currentCategory = cat;
+            document.querySelectorAll('.cat-card').forEach(el => el.classList.remove('active'));
+            
+            const selectedElem = document.getElementById(`cat-${cat === 'Texture Pack' ? 'Texture' : cat}`);
+            if (selectedElem) selectedElem.classList.add('active');
+
+            document.getElementById('sectionHeader').innerText = `MODS & ADDONS (${cat === 'All' ? 'ทั้งหมด' : cat})`;
+            renderMods();
+        }
+
+        // นับดาวน์โหลดจริง + โหลดไฟล์จริง
         async function trackDownload(id) {
-            const res = await fetch(`/api/mods/${id}/download`, { method: 'POST' });
-            const result = await res.json();
-            if (result.success) {
-                const countElem = document.getElementById(`dl-count-${id}`);
-                if (countElem) countElem.innerText = result.downloads;
+            try {
+                const res = await fetch(`/api/mods/${id}/download`, { method: 'POST' });
+                const result = await res.json();
+                if (result.success) {
+                    const countElem = document.getElementById(`dl-count-${id}`);
+                    if (countElem) countElem.innerText = result.downloads;
+                }
+            } catch (err) {
+                console.error("Download count error:", err);
             }
         }
 
-        // ฟังก์ชันลบมอด (ต้องใส่รหัสผ่าน Admin)
+        // ลบไฟล์จริง (ต้องใส่รหัส Admin)
         async function deleteMod(id) {
             const password = prompt("🔑 กรุณากรอกรหัสผ่าน Admin เพื่อยืนยันการลบมอด:");
             if (!password) return;
@@ -248,11 +375,13 @@
             }
         }
 
+        // อัปโหลดไฟล์จริง
         uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const formData = new FormData();
             formData.append('password', document.getElementById('adminPassword').value);
+            formData.append('category', document.getElementById('modCategory').value);
             formData.append('title', document.getElementById('modTitle').value);
             formData.append('artist', document.getElementById('modArtist').value);
             formData.append('coverImage', document.getElementById('coverImage').files[0]);
@@ -274,6 +403,8 @@
                 alert(result.message);
             }
         });
+
+        document.getElementById('searchInput').addEventListener('input', renderMods);
 
         fetchMods();
     </script>
