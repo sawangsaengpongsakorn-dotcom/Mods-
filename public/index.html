@@ -100,9 +100,24 @@
         .mod-card img { width: 100%; height: 180px; object-fit: cover; border-bottom: 3px solid #333; }
         .mod-info { padding: 15px; }
         .mod-title { font-size: 18px; font-weight: bold; color: #FFF; margin-bottom: 5px; }
-        .mod-artist { font-size: 14px; color: #AAA; margin-bottom: 5px; }
+        .mod-artist { font-size: 14px; color: #AAA; margin-bottom: 8px; }
         .mod-artist b { color: #55FF55; }
-        .mod-date { font-size: 12px; color: #666; }
+        
+        /* ป้ายแสดงรายละเอียดขนาดไฟล์และจำนวนโหลด */
+        .mod-stats {
+            display: flex;
+            justify-content: space-between;
+            background: #111;
+            padding: 6px 10px;
+            border: 1px solid #333;
+            font-size: 12px;
+            color: #DDD;
+            margin-bottom: 5px;
+        }
+        .stat-item { display: flex; align-items: center; gap: 4px; }
+        .stat-item span { color: #FFFF55; font-weight: bold; }
+
+        .mod-date { font-size: 12px; color: #666; text-align: right; }
 
         /* Modal อัปโหลด */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 100; }
@@ -184,15 +199,32 @@
                         <div class="mod-info">
                             <div class="mod-title">${mod.title}</div>
                             <div class="mod-artist">สร้างโดย: <b>${mod.artist}</b></div>
+                            
+                            <!-- ป้ายแสดงขนาดไฟล์ และ จำนวนดาวน์โหลด -->
+                            <div class="mod-stats">
+                                <div class="stat-item">💾 <span id="dl-size-${mod.id}">${mod.fileSize || 'ไม่ระบุ'}</span></div>
+                                <div class="stat-item">📥 <span id="dl-count-${mod.id}">${mod.downloads || 0}</span> ครั้ง</div>
+                            </div>
+
                             <div class="mod-date">วันที่: ${mod.date}</div>
                         </div>
                     </div>
                     <div style="padding: 0 15px;">
-                        <a href="${mod.modFileUrl}" download class="btn-mc btn-download">📥 ดาวน์โหลดมอด</a>
+                        <a href="${mod.modFileUrl}" download onclick="trackDownload(${mod.id})" class="btn-mc btn-download">📥 ดาวน์โหลดมอด</a>
                         <button onclick="deleteMod(${mod.id})" class="btn-mc btn-delete">🗑️ ลบมอดนี้</button>
                     </div>
                 </div>
             `).join('');
+        }
+
+        // ฟังก์ชันนับการดาวน์โหลดอัตโนมัติ
+        async function trackDownload(id) {
+            const res = await fetch(`/api/mods/${id}/download`, { method: 'POST' });
+            const result = await res.json();
+            if (result.success) {
+                const countElem = document.getElementById(`dl-count-${id}`);
+                if (countElem) countElem.innerText = result.downloads;
+            }
         }
 
         // ฟังก์ชันลบมอด (ต้องใส่รหัสผ่าน Admin)
